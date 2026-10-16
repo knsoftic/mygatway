@@ -20,6 +20,7 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Password;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\Rules\Password as PasswordRule;
 
 class MerchantController extends Controller
 {
@@ -49,8 +50,12 @@ class MerchantController extends Controller
     }
 
     /**
-     * Create a merchant and its owner login. The owner gets a random password and a
-     * one-time password setup link (emailed, and shown once to the admin to share).
+     * Create a merchant and its owner login.
+     *
+     * With a password: the owner logs in with it straight away (admin shares it).
+     * Without one: the owner is emailed a one-time password setup link. When mail
+     * is not configured (log/array mailer) or sending fails, the link is shown once
+     * to the admin instead, so the account is never left unreachable.
      */
     public function store(Request $request, MerchantOnboardingService $onboarding, AuditLogger $audit): RedirectResponse
     {
@@ -61,14 +66,15 @@ class MerchantController extends Controller
             'owner_email' => ['required', 'string', 'email:rfc', 'max:255', Rule::unique(User::class, 'email')],
             'contact_phone' => ['nullable', 'string', 'max:40'],
             'status' => ['required', Rule::in([MerchantStatus::Pending->value, MerchantStatus::Active->value])],
-            'send_email' => ['nullable', 'boolean'],
+            'password' => ['nullable', 'string', PasswordRule::defaults(), 'confirmed'],
         ]);
+        $passwordSet = filled($v['password'] ?? null);
 
-        [$merchant, $owner] = DB::transaction(function () use ($v, $onboarding, $request) {
+        [$merchant, $owner] = DB::transaction(function () use ($v, $onboarding, $request, $passwordSet) {
             $owner = User::query()->create([
                 'name' => $v['owner_name'],
                 'email' => $v['owner_email'],
-                'password' => Hash::make(Str::password(40)),
+                'password' => Hash::make($passwordSet ? $v['password'] : Str::password(40)),
             ]);
             $owner->forceFill(['email_verified_at' => now()])->save();
 
@@ -85,12 +91,18 @@ class MerchantController extends Controller
 
         $audit->log('merchant.created_by_admin', $merchant, new: [
             'name' => $merchant->name, 'owner_email' => $owner->email, 'status' => $v['status'],
+            'password' => $passwordSet ? 'set_by_admin' : 'setup_link',
         ], merchantId: $merchant->id);
 
-        // One token: emailed when asked (and mail works), otherwise shown once to the admin.
+        $redirect = redirect()->route('admin.merchants.show', $merchant);
+        if ($passwordSet) {
+            return $redirect->with('success', "Merchant created. {$owner->email} can log in with the password you set.");
+        }
+
+        // One token: emailed when mail is configured, otherwise shown once to the admin.
         $token = Password::broker()->createToken($owner);
         $emailed = false;
-        if ($request->boolean('send_email')) {
+        if (! in_array(config('mail.default'), ['log', 'array'], true)) {
             try {
                 $owner->sendPasswordResetNotification($token);
                 $emailed = true;
@@ -98,13 +110,14 @@ class MerchantController extends Controller
                 report($e);
             }
         }
-        $setupUrl = $emailed ? null : route('password.reset', ['token' => $token, 'email' => $owner->email]);
 
-        return redirect()->route('admin.merchants.show', $merchant)
-            ->with('success', $emailed
-                ? "Merchant created. A password setup link was emailed to {$owner->email}."
-                : 'Merchant created. Share the password setup link below with the owner.')
-            ->with('merchant_setup_link', $setupUrl);
+        if ($emailed) {
+            return $redirect->with('success', "Merchant created. A password setup link was emailed to {$owner->email}.");
+        }
+
+        return $redirect
+            ->with('warning', 'Merchant created, but the setup link could not be emailed (outgoing mail is not set up or sending failed). Share the link below with the owner.')
+            ->with('merchant_setup_link', route('password.reset', ['token' => $token, 'email' => $owner->email]));
     }
 
     public function show(Merchant $merchant, LedgerService $ledger): View

@@ -38,7 +38,6 @@ class AdminCreatesMerchantTest extends TestCase
             'owner_email' => 'owner@acme.example',
             'contact_phone' => '+92 300 0000000',
             'status' => 'active',
-            'send_email' => '0',
         ], $overrides);
     }
 
@@ -51,8 +50,9 @@ class AdminCreatesMerchantTest extends TestCase
         $this->get('/login')->assertOk()->assertSee('Request a merchant account');
     }
 
-    public function test_admin_creates_merchant_and_gets_a_one_time_setup_link(): void
+    public function test_without_mail_setup_the_admin_gets_a_one_time_setup_link(): void
     {
+        config(['mail.default' => 'log']);
         $response = $this->actingAs($this->admin)->post(route('admin.merchants.store'), $this->input());
 
         $merchant = Merchant::query()->where('name', 'Acme Shop')->sole();
@@ -79,14 +79,40 @@ class AdminCreatesMerchantTest extends TestCase
         $this->assertAuthenticatedAs($owner->refresh());
     }
 
-    public function test_setup_link_can_be_emailed_instead(): void
+    public function test_blank_password_emails_the_setup_link_when_mail_is_configured(): void
     {
         Notification::fake();
+        config(['mail.default' => 'smtp']);
 
-        $this->actingAs($this->admin)->post(route('admin.merchants.store'), $this->input(['send_email' => '1']))
+        $this->actingAs($this->admin)->post(route('admin.merchants.store'), $this->input())
+            ->assertSessionHas('success')
             ->assertSessionMissing('merchant_setup_link');
 
         Notification::assertSentTo(User::query()->where('email', 'owner@acme.example')->sole(), ResetPassword::class);
+    }
+
+    public function test_admin_can_set_the_password_and_no_email_is_sent(): void
+    {
+        Notification::fake();
+        config(['mail.default' => 'smtp']);
+
+        $this->actingAs($this->admin)->post(route('admin.merchants.store'), $this->input([
+            'password' => 'Admin-Set-Pass-2026!', 'password_confirmation' => 'Admin-Set-Pass-2026!',
+        ]))->assertSessionHas('success')->assertSessionMissing('merchant_setup_link');
+
+        Notification::assertNothingSent();
+        auth()->logout();
+        $this->post('/login', ['email' => 'owner@acme.example', 'password' => 'Admin-Set-Pass-2026!'])->assertRedirect();
+        $this->assertAuthenticatedAs(User::query()->where('email', 'owner@acme.example')->sole());
+    }
+
+    public function test_weak_or_unconfirmed_password_is_rejected(): void
+    {
+        $this->actingAs($this->admin)->post(route('admin.merchants.store'), $this->input(['password' => 'short', 'password_confirmation' => 'short']))
+            ->assertSessionHasErrors('password');
+        $this->actingAs($this->admin)->post(route('admin.merchants.store'), $this->input(['password' => 'Admin-Set-Pass-2026!', 'password_confirmation' => 'different']))
+            ->assertSessionHasErrors('password');
+        $this->assertSame(0, Merchant::query()->count());
     }
 
     public function test_pending_status_and_validation(): void

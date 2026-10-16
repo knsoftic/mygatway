@@ -199,10 +199,11 @@ class BinancePayGatewayTest extends TestCase
     {
         Http::fake(['bpay.binanceapi.com/*' => Http::sequence()
             ->push(['status' => 'FAIL', 'code' => '400611', 'errorMessage' => 'insufficient balance'], 400)
-            ->push(['status' => 'FAIL', 'code' => '400000', 'errorMessage' => 'unknown error'], 400)]);
+            ->push(['status' => 'FAIL', 'code' => '400000', 'errorMessage' => 'unknown error'], 400)
+            ->push(['status' => 'FAIL', 'code' => '400004', 'errorMessage' => 'Invalid API-key, IP, or permissions for action, request ip: 203.0.113.5'], 401)]);
 
         $payment = (new Payment)->forceFill(['provider_order_id' => 'x', 'provider_payment_id' => '1']);
-        foreach (['provider_insufficient_funds' => false, 'provider_unavailable' => true] as $code => $retryable) {
+        foreach (['provider_insufficient_funds' => false, 'provider_unavailable' => true, 'provider_auth_failed' => false] as $code => $retryable) {
             try {
                 $this->gateway()->fetchPayment($payment);
                 $this->fail('Expected ProviderException');

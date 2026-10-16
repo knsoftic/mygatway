@@ -115,6 +115,12 @@ class CryptomusClient
                 'The payment provider is temporarily unavailable. Please retry.', true, $status, $context);
         }
 
+        // Wrong merchant UUID / key / signature, or the key's IP whitelist: an admin-side setup issue.
+        if ($status === 401 || Str::contains($message, ['Invalid Merchant', 'Invalid Sign', 'Unauthorized', 'Access denied'])) {
+            return new ProviderException("Cryptomus rejected the credentials on {$path}: {$message}", 'cryptomus', 'provider_auth_failed',
+                'The payment provider is not available right now. Please try another provider or contact support.', false, $status, $context);
+        }
+
         if (Str::contains($message, ['Minimum amount', 'Maximum amount', 'withdrawal amount is too small'])) {
             return new ProviderException("Cryptomus amount out of range: {$message}", 'cryptomus', 'amount_out_of_range',
                 $message, false, $status, $context);

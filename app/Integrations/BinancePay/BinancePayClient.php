@@ -114,6 +114,9 @@ class BinancePayClient
         }
 
         return match ($code) {
+            // 400002 invalid signature, 400004 key/IP/permission rejected: an admin-side setup issue.
+            '400002', '400004' => new ProviderException("Binance Pay rejected the credentials ({$code}): {$message}", 'binance_pay', 'provider_auth_failed',
+                'The payment provider is not available right now. Please try another provider or contact support.', false, $status, $context),
             '400105', '406104' => new ProviderException("Binance Pay currency not supported: {$message}", 'binance_pay', 'currency_not_supported',
                 'This currency is not supported by the provider.', false, $status, $context),
             '400701', '406102' => new ProviderException("Binance Pay amount invalid: {$message}", 'binance_pay', 'amount_out_of_range',

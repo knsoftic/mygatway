@@ -209,9 +209,10 @@ class CryptomusGatewayTest extends TestCase
     {
         Http::fake(['api.cryptomus.com/*' => Http::sequence()
             ->push(['state' => 1, 'message' => 'Not enough funds'], 422)
-            ->push(['state' => 1, 'message' => 'Server error'], 500)]);
+            ->push(['state' => 1, 'message' => 'Server error'], 500)
+            ->push(['state' => 1, 'message' => 'Invalid Merchant Uuid'], 401)]);
 
-        foreach (['provider_insufficient_funds' => false, 'provider_unavailable' => true] as $code => $retryable) {
+        foreach (['provider_insufficient_funds' => false, 'provider_unavailable' => true, 'provider_auth_failed' => false] as $code => $retryable) {
             try {
                 $this->gateway()->fetchPayment($this->payment());
                 $this->fail('Expected ProviderException');

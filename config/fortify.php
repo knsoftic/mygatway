@@ -162,7 +162,8 @@ return [
     */
 
     'features' => [
-        Features::registration(),
+        // Public sign-up is off: merchant accounts are created by an administrator
+        // (Admin → Merchants → New merchant), who sends the owner a password setup link.
         Features::resetPasswords(),
         Features::emailVerification(),
         // Profile and business details are managed by the merchant settings pages.

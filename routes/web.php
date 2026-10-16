@@ -99,6 +99,13 @@ Route::get('/notifications', [Merchant\AccountController::class, 'notifications'
 Route::middleware(['auth', 'verified', 'admin'])->prefix('admin')->name('admin.')->group(function () {
     Route::get('/', Admin\DashboardController::class)->name('dashboard');
 
+    // Merchant accounts are created by administrators only (public sign-up is off).
+    // Registered before /merchants/{merchant} so "create" is not read as a merchant id.
+    Route::middleware('can:merchants.manage')->group(function () {
+        Route::get('/merchants/create', [Admin\MerchantController::class, 'create'])->name('merchants.create');
+        Route::post('/merchants', [Admin\MerchantController::class, 'store'])->middleware('throttle:sensitive')->name('merchants.store');
+    });
+
     Route::middleware('can:merchants.view')->group(function () {
         Route::get('/merchants', [Admin\MerchantController::class, 'index'])->name('merchants.index');
         Route::get('/merchants/{merchant}', [Admin\MerchantController::class, 'show'])->name('merchants.show');

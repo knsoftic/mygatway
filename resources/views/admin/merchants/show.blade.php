@@ -12,6 +12,13 @@
 @endsection
 
 @section('content')
+    @if (session('merchant_setup_link'))
+        <div class="alert alert-info">
+            <strong><i class="bi bi-link-45deg"></i> Password setup link for {{ $merchant->owner?->email }}</strong>
+            <div class="input-group mt-2"><input id="setup-link" class="form-control font-mono small" value="{{ session('merchant_setup_link') }}" readonly aria-label="Password setup link"><button class="btn btn-outline-secondary" data-copy="#setup-link" type="button"><i class="bi bi-clipboard"></i> Copy</button></div>
+            <div class="small mt-2">Send it to the owner privately. It is shown only now, works once and expires after {{ config('auth.passwords.users.expire', 60) }} minutes. After that they can use "Forgot password" on the login page.</div>
+        </div>
+    @endif
     @if ($merchant->status_reason)
         <div class="alert alert-warning"><i class="bi bi-info-circle"></i> Status reason: <strong>{{ $merchant->status_reason }}</strong></div>
     @endif

@@ -2,6 +2,9 @@
 
 @section('header')
     <div><h1 class="page-title">Merchants</h1><div class="small text-muted-2">{{ number_format($merchants->total()) }} merchant account(s)</div></div>
+    @can('merchants.manage')
+        <a class="btn btn-primary" href="{{ route('admin.merchants.create') }}"><i class="bi bi-plus-lg"></i> New merchant</a>
+    @endcan
 @endsection
 
 @section('content')

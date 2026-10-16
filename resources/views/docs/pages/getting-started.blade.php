@@ -6,7 +6,7 @@
 
 <h2>Quick start</h2>
 <ol>
-    <li><a href="{{ route('register') }}">Create a merchant account</a> and verify your email.</li>
+    <li><a href="{{ route('contact') }}">Request a merchant account</a>. Our team creates it and emails you a link to set your password.</li>
     <li>Open <strong>Developers → API keys</strong> and create a <strong>test</strong> key. Copy the secret (<code>sk_test_…</code>); it is shown once.</li>
     <li>Create your first payment from your server:</li>
 </ol>

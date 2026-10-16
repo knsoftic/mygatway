@@ -1,12 +1,12 @@
 @extends('layouts.public', ['title' => 'How it works'])
 
 @section('content')
-@include('pages.partials.page-header', ['eyebrow' => 'How it works', 'heading' => 'From sign-up to your first live payment', 'intro' => 'A predictable path: integrate in test mode, verify your business, then switch to live keys.'])
+@include('pages.partials.page-header', ['eyebrow' => 'How it works', 'heading' => 'From your account to your first live payment', 'intro' => 'A predictable path: integrate in test mode, verify your business, then switch to live keys.'])
 
 <section class="section pt-4">
     <div class="container" style="max-width:56rem">
         @foreach ([
-            ['person-plus', 'Create your merchant account', 'Sign up with your business details and verify your email. Test mode is available immediately.'],
+            ['person-plus', 'Request your merchant account', 'Send us your business details. Our team opens your account and emails you a link to set your password. Test mode is available immediately.'],
             ['key', 'Generate test API keys', 'Create a test secret key in the dashboard. Secrets are shown once and stored only as a hash.'],
             ['code-slash', 'Integrate the API', 'Create payments from your server, redirect customers to checkout_url, and listen for signed webhooks.'],
             ['cone-striped', 'Test every outcome', 'Use the sandbox checkout to simulate paid, underpaid, failed and expired payments, plus payouts.'],

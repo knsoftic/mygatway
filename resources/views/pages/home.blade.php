@@ -11,7 +11,7 @@
                     @if ($providers->isNotEmpty()){{ $providers->pluck('name')->join(', ', ' and ') }}@else our payment providers @endif
                     through a single, secure REST API, with transparent fees, verified callbacks and an auditable ledger.</p>
                 <div class="d-flex flex-wrap gap-2">
-                    <a href="{{ route('register') }}" class="btn btn-primary btn-lg px-4">Create free account</a>
+                    <a href="{{ route('contact') }}" class="btn btn-primary btn-lg px-4">Request an account</a>
                     <a href="{{ route('docs.index') }}" class="btn btn-outline-primary btn-lg px-4"><i class="bi bi-code-slash"></i> Read the docs</a>
                 </div>
                 <div class="d-flex flex-wrap gap-4 mt-4 small text-muted-2">
@@ -142,8 +142,8 @@ curl {{ url('/api/v1/payments') }} \
 <section class="section pt-0">
     <div class="container text-center">
         <h2 class="section-title mb-3">Start integrating in minutes</h2>
-        <p class="text-muted-2 mb-4">Create an account, grab a test API key and make your first payment.</p>
-        <a href="{{ route('register') }}" class="btn btn-primary btn-lg px-4">Get started</a>
+        <p class="text-muted-2 mb-4">Tell us about your business. Once our team opens your account, grab a test API key and make your first payment.</p>
+        <a href="{{ route('contact') }}" class="btn btn-primary btn-lg px-4">Request an account</a>
         <a href="{{ route('contact') }}" class="btn btn-link btn-lg">Talk to sales</a>
     </div>
 </section>

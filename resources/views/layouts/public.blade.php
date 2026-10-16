@@ -35,7 +35,7 @@
                     <a href="{{ auth()->user()->merchant_id ? route('dashboard') : route('admin.dashboard') }}" class="btn btn-primary">Dashboard</a>
                 @else
                     <a href="{{ route('login') }}" class="btn btn-link text-body text-decoration-none">Log in</a>
-                    <a href="{{ route('register') }}" class="btn btn-primary">Get started</a>
+                    <a href="{{ route('contact') }}" class="btn btn-primary">Request an account</a>
                 @endauth
             </div>
         </div>

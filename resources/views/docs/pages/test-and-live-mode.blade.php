@@ -4,7 +4,7 @@
     <thead><tr><th></th><th>Test mode</th><th>Live mode</th></tr></thead>
     <tbody>
         <tr><td>Key prefix</td><td><code>sk_test_</code></td><td><code>sk_live_</code></td></tr>
-        <tr><td>Available</td><td>Immediately after sign-up</td><td>After business verification is approved and live mode is enabled for your account</td></tr>
+        <tr><td>Available</td><td>As soon as your account is created</td><td>After business verification is approved and live mode is enabled for your account</td></tr>
         <tr><td>Payments</td><td>Processed by our built-in simulator. No real funds move.</td><td>Created with Cryptomus or Binance Pay</td></tr>
         <tr><td>Payouts</td><td>Approved automatically and simulated</td><td>Reviewed by our team (when approval is required), then sent through the provider</td></tr>
         <tr><td>Data</td><td>Only visible to test keys and the dashboard's test view</td><td>Only visible to live keys and the dashboard's live view</td></tr>

@@ -30,5 +30,5 @@
 @endsection
 
 @section('below')
-    New to {{ config('app.name') }}? <a href="{{ route('register') }}">Create a merchant account</a>
+    New to {{ config('app.name') }}? <a href="{{ route('contact') }}">Request a merchant account</a>
 @endsection

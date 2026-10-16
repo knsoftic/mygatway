@@ -15,6 +15,7 @@ use Database\Seeders\FeeRuleSeeder;
 use Database\Seeders\ProviderSeeder;
 use Database\Seeders\RolesAndPermissionsSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\URL;
 use Tests\TestCase;
 
@@ -57,7 +58,7 @@ class MerchantDashboardPayInPayOutTest extends TestCase
     private function receivePayment(User $owner, string $amount): Payment
     {
         $this->actingAs($owner)->post(route('merchant.payments.store'), [
-            'amount' => $amount, 'currency' => 'USDT', 'provider' => 'cryptomus', 'lifetime' => 3600, 'description' => 'Order 1',
+            'amount' => $amount, 'currency' => 'USDT', 'provider' => 'cryptomus', 'lifetime' => 3600, 'environment' => 'sandbox', 'description' => 'Order 1',
         ])->assertRedirect()->assertSessionHasNoErrors();
 
         $payment = Payment::query()->where('merchant_id', $owner->merchant_id)->latest('id')->firstOrFail();
@@ -96,7 +97,7 @@ class MerchantDashboardPayInPayOutTest extends TestCase
 
     public function test_payment_page_shows_the_checkout_link_while_open(): void
     {
-        $this->actingAs($this->ownerA)->post(route('merchant.payments.store'), ['amount' => '10', 'currency' => 'USDT', 'lifetime' => 3600]);
+        $this->actingAs($this->ownerA)->post(route('merchant.payments.store'), ['amount' => '10', 'currency' => 'USDT', 'lifetime' => 3600, 'environment' => 'sandbox']);
         $payment = Payment::query()->where('merchant_id', $this->ownerA->merchant_id)->sole();
 
         $this->assertNotNull($payment->checkout_url);
@@ -137,9 +138,52 @@ class MerchantDashboardPayInPayOutTest extends TestCase
         $this->assertSame(0, bccomp($this->balance($this->ownerB), '990', 8));
     }
 
+    public function test_form_offers_sandbox_and_production_and_locks_production_until_verified(): void
+    {
+        $this->actingAs($this->ownerA)->get(route('merchant.payments.create'))->assertOk()
+            ->assertSee('Sandbox (testing)')->assertSee('Production (live)')
+            ->assertSee('Available after your', false);
+    }
+
+    public function test_production_is_refused_until_live_is_enabled(): void
+    {
+        $this->actingAs($this->ownerA)->from(route('merchant.payments.create'))->post(route('merchant.payments.store'), [
+            'amount' => '10', 'currency' => 'USDT', 'lifetime' => 3600, 'environment' => 'production',
+        ])->assertRedirect(route('merchant.payments.create'))->assertSessionHas('error');
+
+        $this->assertSame(0, Payment::query()->count());
+    }
+
+    public function test_production_creates_a_live_payment_with_the_real_provider(): void
+    {
+        Merchant::query()->whereKey($this->ownerA->merchant_id)->update([
+            'verification_status' => 'approved', 'live_enabled' => true, 'live_enabled_at' => now(),
+        ]);
+        config(['services.cryptomus.merchant_id' => 'm-uuid', 'services.cryptomus.payment_key' => 'pk']);
+        Http::fake(['api.cryptomus.com/v1/payment' => Http::response(['state' => 0, 'result' => [
+            'uuid' => 'inv-live-1', 'url' => 'https://pay.cryptomus.com/pay/inv-live-1', 'payment_status' => 'check', 'is_final' => false,
+        ]])]);
+
+        $this->actingAs($this->ownerA)->get(route('merchant.payments.create'))->assertDontSee('Available after your', false);
+        $this->actingAs($this->ownerA)->post(route('merchant.payments.store'), [
+            'amount' => '10', 'currency' => 'USDT', 'provider' => 'cryptomus', 'lifetime' => 3600, 'environment' => 'production',
+        ])->assertRedirect()->assertSessionHasNoErrors()->assertSessionHas('dashboard_mode', 'live');
+
+        $payment = Payment::query()->sole();
+        $this->assertSame(Mode::Live, $payment->mode);
+        $this->assertSame('https://pay.cryptomus.com/pay/inv-live-1', $payment->checkout_url);
+        Http::assertSentCount(1);
+    }
+
+    public function test_environment_is_required(): void
+    {
+        $this->actingAs($this->ownerA)->post(route('merchant.payments.store'), ['amount' => '10', 'currency' => 'USDT', 'lifetime' => 3600])
+            ->assertSessionHasErrors('environment');
+    }
+
     public function test_invalid_amount_is_rejected(): void
     {
-        $this->actingAs($this->ownerA)->post(route('merchant.payments.store'), ['amount' => '0', 'currency' => 'USDT', 'lifetime' => 3600])
+        $this->actingAs($this->ownerA)->post(route('merchant.payments.store'), ['amount' => '0', 'currency' => 'USDT', 'lifetime' => 3600, 'environment' => 'sandbox'])
             ->assertSessionHasErrors('amount');
         $this->assertSame(0, Payment::query()->count());
     }

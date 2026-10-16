@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Merchant;
 
+use App\Enums\Mode;
 use App\Enums\PaymentStatus;
 use App\Http\Controllers\Controller;
 use App\Models\Payment;
@@ -25,11 +26,14 @@ class PaymentController extends Controller
             ->whereHas('provider', fn ($q) => $q->where('payin_enabled', true))
             ->with('provider')->orderBy('currency')->get();
 
+        $merchant = $request->user()->merchant;
+
         return view('merchant.payments.create', [
             'mode' => $mode,
             'currencies' => $currencies->pluck('currency')->unique()->values(),
             'providers' => $currencies->pluck('provider')->unique('id')->sortBy('priority')->values(),
-            'canCreate' => $request->user()->merchant->canTransact($mode),
+            'canSandbox' => $merchant->canTransact(Mode::Test),
+            'canProduction' => $merchant->canTransact(Mode::Live),
         ]);
     }
 
@@ -52,16 +56,22 @@ class PaymentController extends Controller
             'description' => ['nullable', 'string', 'max:255'],
             'customer_email' => ['nullable', 'email:rfc', 'max:255'],
             'lifetime' => ['required', 'integer', 'between:'.config('gateway.payments.min_lifetime').','.config('gateway.payments.max_lifetime')],
+            // sandbox = test mode (simulator, no real money); production = live mode (real provider).
+            'environment' => ['required', 'in:sandbox,production'],
         ], [
             'amount.regex' => 'Enter an amount like 25 or 25.50 (up to 8 decimals).',
             'amount.not_regex' => 'The amount must be greater than zero.',
             'reference.regex' => 'Use only letters, numbers, - and _ (max 64).',
         ]);
 
-        $payment = $payments->create($request->user()->merchant, null, $request->attributes->get('dashboard_mode'), $v);
+        $mode = $v['environment'] === 'production' ? Mode::Live : Mode::Test;
+        $payment = $payments->create($request->user()->merchant, null, $mode, $v);
+
+        // Show the dashboard in the payment's mode, so it appears in Payments and its balance.
+        $request->session()->put('dashboard_mode', $mode->value);
 
         return redirect()->route('merchant.payments.show', $payment)
-            ->with('success', 'Payment created. Send the checkout link to your customer; your balance is credited when the payment is confirmed.');
+            ->with('success', ($mode === Mode::Live ? 'Production' : 'Sandbox').' payment created. Send the checkout link to your customer; your balance is credited when the payment is confirmed.');
     }
 
     public function index(Request $request): View

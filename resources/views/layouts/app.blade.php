@@ -5,10 +5,16 @@
     $merchantNav = [
         'Overview' => [
             ['dashboard', 'speedometer2', 'Dashboard', 'dashboard'],
-            ['merchant.payments.index', 'arrow-down-left-circle', 'Payments', 'merchant.payments.*'],
-            ['merchant.payouts.index', 'arrow-up-right-circle', 'Payouts', 'merchant.payouts.*'],
             ['merchant.ledger.index', 'journal-text', 'Balance & ledger', 'merchant.ledger.*'],
             ['merchant.reports.index', 'file-earmark-spreadsheet', 'Reports', 'merchant.reports.*'],
+        ],
+        'Pay In' => [
+            ['merchant.payments.create', 'plus-circle', 'Receive payment', 'merchant.payments.create'],
+            ['merchant.payments.index', 'arrow-down-left-circle', 'Payments', 'merchant.payments.index|merchant.payments.show'],
+        ],
+        'Pay Out' => [
+            ['merchant.payouts.create', 'send', 'Send payout', 'merchant.payouts.create'],
+            ['merchant.payouts.index', 'arrow-up-right-circle', 'Payouts', 'merchant.payouts.index|merchant.payouts.show'],
         ],
         'Developers' => [
             ['merchant.api-keys.index', 'key', 'API keys', 'merchant.api-keys.*'],
@@ -69,7 +75,7 @@
                 @foreach ($items as $item)
                     @php [$routeName, $icon, $label, $pattern] = $item; $ability = $item[4] ?? null; @endphp
                     @continue(! Route::has($routeName) || ($ability && ! $user->can($ability)))
-                    <a class="nav-link {{ request()->routeIs($pattern) ? 'active' : '' }}" href="{{ route($routeName) }}" @if (request()->routeIs($pattern)) aria-current="page" @endif>
+                    <a class="nav-link {{ request()->routeIs(...explode('|', $pattern)) ? 'active' : '' }}" href="{{ route($routeName) }}" @if (request()->routeIs(...explode('|', $pattern))) aria-current="page" @endif>
                         <i class="bi bi-{{ $icon }}"></i>{{ $label }}
                     </a>
                 @endforeach

@@ -9,6 +9,17 @@
 @endsection
 
 @section('content')
+    @if ($payment->checkout_url && $payment->status->isOpen())
+        <div class="card mb-4 border-primary-subtle"><div class="card-body">
+            <div class="fw-semibold mb-1"><i class="bi bi-link-45deg"></i> Checkout link for your customer</div>
+            <div class="input-group">
+                <input id="checkout-link" class="form-control font-mono small" value="{{ $payment->checkout_url }}" readonly aria-label="Checkout link">
+                <button class="btn btn-outline-secondary" data-copy="#checkout-link" type="button"><i class="bi bi-clipboard"></i> Copy</button>
+                <a class="btn btn-primary" href="{{ $payment->checkout_url }}" target="_blank" rel="noopener noreferrer">Open <i class="bi bi-box-arrow-up-right"></i></a>
+            </div>
+            <div class="small text-muted-2 mt-2">Valid until {{ $payment->expires_at?->toDayDateTimeString() ?? 'the provider expires it' }}. Your balance is credited only after the payment is confirmed.</div>
+        </div></div>
+    @endif
     @if ($payment->needs_review)
         <div class="alert alert-warning"><i class="bi bi-flag-fill"></i> This payment is flagged for review by our team: <strong>{{ $payment->review_reason }}</strong>.</div>
     @endif

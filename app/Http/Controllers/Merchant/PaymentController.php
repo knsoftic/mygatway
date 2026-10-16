@@ -6,13 +6,64 @@ use App\Enums\PaymentStatus;
 use App\Http\Controllers\Controller;
 use App\Models\Payment;
 use App\Models\PaymentProvider;
+use App\Models\SupportedCurrency;
 use App\Models\WebhookEvent;
+use App\Services\Payments\PaymentService;
 use Illuminate\Contracts\View\View;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 
 class PaymentController extends Controller
 {
+    /** "Receive payment": a Pay In created from the dashboard instead of the API. */
+    public function create(Request $request): View
+    {
+        $mode = $request->attributes->get('dashboard_mode');
+        $currencies = SupportedCurrency::query()->usable()->where('direction', 'payin')
+            ->whereHas('provider', fn ($q) => $q->where('payin_enabled', true))
+            ->with('provider')->orderBy('currency')->get();
+
+        return view('merchant.payments.create', [
+            'mode' => $mode,
+            'currencies' => $currencies->pluck('currency')->unique()->values(),
+            'providers' => $currencies->pluck('provider')->unique('id')->sortBy('priority')->values(),
+            'canCreate' => $request->user()->merchant->canTransact($mode),
+        ]);
+    }
+
+    /**
+     * Creates the payment through the same service as POST /api/v1/payments, so fees,
+     * limits, provider routing and ledger crediting are identical. The amount is credited
+     * to this merchant's balance only when the provider confirms the payment.
+     */
+    public function store(Request $request, PaymentService $payments): RedirectResponse
+    {
+        $request->merge([
+            'currency' => strtoupper((string) $request->input('currency')),
+            'reference' => $request->input('reference') ?: 'dash-'.Str::lower(Str::random(12)),
+        ]);
+        $v = $request->validate([
+            'amount' => ['required', 'string', 'regex:/^(?:0|[1-9]\d{0,17})(?:\.\d{1,8})?$/', 'not_regex:/^0(?:\.0+)?$/'],
+            'currency' => ['required', 'string', 'regex:/^[A-Z0-9]{2,16}$/'],
+            'provider' => ['nullable', Rule::in(['cryptomus', 'binance_pay'])],
+            'reference' => ['required', 'string', 'regex:/^[A-Za-z0-9_\-]{1,64}$/'],
+            'description' => ['nullable', 'string', 'max:255'],
+            'customer_email' => ['nullable', 'email:rfc', 'max:255'],
+            'lifetime' => ['required', 'integer', 'between:'.config('gateway.payments.min_lifetime').','.config('gateway.payments.max_lifetime')],
+        ], [
+            'amount.regex' => 'Enter an amount like 25 or 25.50 (up to 8 decimals).',
+            'amount.not_regex' => 'The amount must be greater than zero.',
+            'reference.regex' => 'Use only letters, numbers, - and _ (max 64).',
+        ]);
+
+        $payment = $payments->create($request->user()->merchant, null, $request->attributes->get('dashboard_mode'), $v);
+
+        return redirect()->route('merchant.payments.show', $payment)
+            ->with('success', 'Payment created. Send the checkout link to your customer; your balance is credited when the payment is confirmed.');
+    }
+
     public function index(Request $request): View
     {
         $mode = $request->attributes->get('dashboard_mode');

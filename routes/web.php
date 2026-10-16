@@ -54,6 +54,8 @@ Route::middleware(['auth', 'verified', 'merchant', 'dashboard.mode'])->group(fun
         Route::post('/mode', [Merchant\DashboardController::class, 'switchMode'])->name('mode.update');
 
         Route::get('/payments', [Merchant\PaymentController::class, 'index'])->name('payments.index');
+        Route::get('/payments/new', [Merchant\PaymentController::class, 'create'])->name('payments.create');
+        Route::post('/payments', [Merchant\PaymentController::class, 'store'])->middleware('throttle:sensitive')->name('payments.store');
         Route::get('/payments/{payment}', [Merchant\PaymentController::class, 'show'])->name('payments.show');
 
         Route::get('/payouts', [Merchant\PayoutController::class, 'index'])->name('payouts.index');
